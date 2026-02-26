@@ -13,41 +13,33 @@ app = Flask(__name__) # initializing a flask app
 def homePage():
     return render_template("index.html")
 
-@app.route('/predict',methods=['POST','GET']) # route to show the predictions in a web UI
+@app.route('/predict', methods=['POST'])
 @cross_origin()
-def index():
-    if request.method == 'POST':
-        try:
-            #  reading the inputs given by the user
-            gre_score=float(request.form['gre_score'])
-            toefl_score = float(request.form['toefl_score'])
-            university_rating = float(request.form['university_rating'])
-            sop = float(request.form['sop'])
-            lor = float(request.form['lor'])
-            cgpa = float(request.form['cgpa'])
-            is_research = request.form['research']
-            if(is_research=='yes'):
-                research=1
-            else:
-                research=0
-            #arr=np.array(list(gre_score,toefl_score,university_rating,sop,lor,cgpa,research))
-            scaler=pickle.load(open("scaling_model.pkl","rb"))
-            predict_1 = scaler.transform([[gre_score,toefl_score,university_rating,sop,lor,cgpa,research]])
+def predict():
+    try:
+        data = request.json
 
-            filename = 'ridge_regression_model.pkl'
-            loaded_model = pickle.load(open(filename, 'rb')) # loading the model file from the storage
-            # predictions using the loaded model file
-            prediction=loaded_model.predict(predict_1)
-            print('prediction is', prediction)
-            # showing the prediction results in a UI
-            return render_template('results.html',prediction=prediction[0])
-        except Exception as e:
-            print('The Exception message is: ',e)
-            return 'something is wrong'
-    # return render_template('results.html')
-    else:
-        return render_template('index.html')
+        gre_score = float(data['gre_score'])
+        toefl_score = float(data['toefl_score'])
+        university_rating = float(data['university_rating'])
+        sop = float(data['sop'])
+        lor = float(data['lor'])
+        cgpa = float(data['cgpa'])
+        research = 1 if data['research'] == "yes" else 0
 
+        # Load scaler
+        scaler = pickle.load(open("scaling_model.pkl", "rb"))
+        scaled_input = scaler.transform([[gre_score, toefl_score, university_rating,
+                                          sop, lor, cgpa, research]])
+
+        # Load model
+        model = pickle.load(open("ridge_regression_model.pkl", "rb"))
+        prediction = model.predict(scaled_input)[0]
+
+        return jsonify({"prediction": float(prediction)})
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 
 if __name__ == "__main__":
